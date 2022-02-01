@@ -85,7 +85,8 @@ class FNO3d(nn.Module):
             W defined by self.w; K defined by self.conv .
         3. Project from the channel space to the output space by self.fc1 and self.fc2 .
         
-        input: the solution of the first 10 timesteps + 3 locations (u(1, x, y), ..., u(10, x, y),  x, y, t). It's a constant function in time, except for the last index.
+        input: the solution of the first 10 timesteps + 3 locations (u(1, x, y), ..., u(10, x, y),  x, y, t). 
+        It's a constant function in time, except for the last index.
         input shape: (batchsize, x=64, y=64, t=40, c=13)
         output: the solution of the next 40 timesteps
         output shape: (batchsize, x=64, y=64, t=40, c=1)
@@ -226,8 +227,12 @@ train_u = y_normalizer.encode(train_u)
 train_a = train_a.reshape(ntrain,S,S,1,T_in).repeat([1,1,1,T,1])
 test_a = test_a.reshape(ntest,S,S,1,T_in).repeat([1,1,1,T,1])
 
-train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_a, train_u), batch_size=batch_size, shuffle=True)
-test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_a, test_u), batch_size=batch_size, shuffle=False)
+train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_a, train_u), 
+                                            batch_size=batch_size, 
+                                            shuffle=True)
+test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_a, test_u), 
+                                            batch_size=batch_size, 
+                                            shuffle=False)
 
 t2 = default_timer()
 
