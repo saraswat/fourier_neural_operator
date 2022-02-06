@@ -144,7 +144,7 @@ class Net2d(nn.Module):
 ################################################################
 
 TRAIN_PATH = 'data/ns_data_V10000_N1200_T20.mat'
-TEST_PATH = 'data/ns_data_V10000_N1200_T20.mat'
+TEST_PATH =  'data/ns_data_V10000_N1200_T20.mat'
 
 ntrain = 1000
 ntest = 200
