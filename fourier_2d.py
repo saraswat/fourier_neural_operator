@@ -1,6 +1,7 @@
 """
 @author: Zongyi Li
-This file is the Fourier Neural Operator for 2D problem such as the Darcy Flow discussed in Section 5.2 in the [paper](https://arxiv.org/pdf/2010.08895.pdf).
+This file is the Fourier Neural Operator for 2D problem such as the Darcy Flow discussed in Section 5.2 in the 
+[paper](https://arxiv.org/pdf/2010.08895.pdf).
 """
 
 import numpy as np
@@ -157,8 +158,8 @@ epochs = 500
 step_size = 100
 gamma = 0.5
 
-modes = 12
-width = 32
+modes = 12 #k_max_j
+width = 32 #d_v
 
 r = 5
 h = int(((421 - 1)/r) + 1)

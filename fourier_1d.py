@@ -51,14 +51,16 @@ class SpectralConv1d(nn.Module):
     def forward(self, x):
         batchsize = x.shape[0]
         #Compute Fourier coeffcients up to factor of e^(- something constant)
+        print(f'SpectralConv1d before fft, x.shape:{x.shape}')
         x_ft = torch.fft.rfft(x)
+        print(f'SpectralConv1d after fft, x.shape:{x.shape}')
 
-        # Multiply relevant Fourier modes
+        # Multiply relevant Fourier modes with the learnt weights.
         out_ft = torch.zeros(batchsize, self.out_channels, x.size(-1)//2 + 1,  device=x.device, dtype=torch.cfloat)
         out_ft[:, :, :self.modes1] = self.compl_mul1d(x_ft[:, :, :self.modes1], self.weights1)
 
         #Return to physical space
-        x = torch.fft.irfft(out_ft, n=x.size(-1))
+        x = torch.fft.irfft(out_ft, n=x.size(-1)) # vj: back to s=1024 for Burger.
         return x
 
 class FNO1d(nn.Module):
@@ -83,27 +85,40 @@ class FNO1d(nn.Module):
         self.padding = 2 # pad the domain if input is non-periodic
         self.fc0 = nn.Linear(2, self.width) # input channel is 2: (a(x), x)
 
-        self.conv0 = SpectralConv1d(self.width, self.width, self.modes1)
-        self.conv1 = SpectralConv1d(self.width, self.width, self.modes1)
-        self.conv2 = SpectralConv1d(self.width, self.width, self.modes1)
-        self.conv3 = SpectralConv1d(self.width, self.width, self.modes1)
         self.w0 = nn.Conv1d(self.width, self.width, 1)
+        self.conv0 = SpectralConv1d(self.width, self.width, self.modes1)
+
         self.w1 = nn.Conv1d(self.width, self.width, 1)
+        self.conv1 = SpectralConv1d(self.width, self.width, self.modes1)
+
         self.w2 = nn.Conv1d(self.width, self.width, 1)
+        self.conv2 = SpectralConv1d(self.width, self.width, self.modes1)
+
         self.w3 = nn.Conv1d(self.width, self.width, 1)
+        self.conv3 = SpectralConv1d(self.width, self.width, self.modes1)
 
         self.fc1 = nn.Linear(self.width, 128)
         self.fc2 = nn.Linear(128, 1)
 
     def forward(self, x):
+        # on input: [20, 1024, 1] b x u0
         grid = self.get_grid(x.shape, x.device)
-        x = torch.cat((x, grid), dim=-1)
+        x = torch.cat((x, grid), dim=-1) # add x, the spatial coordinate: b x [u0, xcoord]
+        #[20, 1024, 2] 
+
         x = self.fc0(x)
+        #[20, 1024, 64] raise from 2 to 64, embedding space.
+
         x = x.permute(0, 2, 1)
+        #[20, 64, 1024]
+
         # x = F.pad(x, [0,self.padding]) # pad the domain if input is non-periodic
 
         x1 = self.conv0(x)
+        #[20, 64, 1024]
+
         x2 = self.w0(x)
+        #[20, 64, 1024]
         x = x1 + x2
         x = F.gelu(x)
 
@@ -123,12 +138,21 @@ class FNO1d(nn.Module):
 
         # x = x[..., :-self.padding] # pad the domain if input is non-periodic
         x = x.permute(0, 2, 1)
+        #[20, 1024, 64] 
         x = self.fc1(x)
+        #[20, 1024, 128]
+
         x = F.gelu(x)
         x = self.fc2(x)
+        #[20, 1024, 1]
+
         return x
 
     def get_grid(self, shape, device):
+        """
+        vj: Returns the 1-d grid spacing points used. 
+        These are actually input for Burger1d!
+        """
         batchsize, size_x = shape[0], shape[1]
         gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float)
         gridx = gridx.reshape(1, size_x, 1).repeat([batchsize, 1, 1])
@@ -147,6 +171,7 @@ def get_data(
     ntest = 100,
     sub = 2**3, #subsampling rate
     ):
+    # Total number of grid points is 2*13 = 8192
     h = 2**13 // sub #total grid size divided by the subsampling rate
     s = h
     # Data is of the shape (number of samples, grid size)
@@ -170,8 +195,8 @@ def train(
     y_test,
     ntrain = 1000,
     ntest = 100,
-    modes=16,
-    width=64,
+    modes=16, # k_max,j
+    width=64, # d_v, embedding size
     epochs=500, 
     step_size=50, 
     learning_rate = 0.001,
